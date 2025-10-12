@@ -77,16 +77,12 @@ class LoraFAOptimizer(Optimizer):
             name_list = []
 
             for p, n in zip(group["params"], group["names"]):
-                if p is None:
-                    continue
 
                 # Skip no-grad parameters if not LoRA
                 if "lora" not in n and p.grad is None:
                     continue
 
                 grad = p.grad
-                if grad is None:
-                    continue
 
                 device = p.device
 
@@ -122,9 +118,9 @@ class LoraFAOptimizer(Optimizer):
                     grad_B_orin = B.grad
 
                     delta = 1e-8
-                    AA_T = A.T @ A
+                    AA_T = A @ A.T
                     AA_T_inv = torch.linalg.pinv(
-                        AA_T + delta * torch.eye(A.shape[0], device=A.device)
+                        AA_T + delta * torch.eye(A.shape[0]).to(A.device)
                     )
 
                     device_type = infer_device()
