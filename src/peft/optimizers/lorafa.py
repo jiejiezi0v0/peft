@@ -212,13 +212,14 @@ def create_lorafa_optimizer(
 
     optimizer = LoraFAOptimizer(param_groups)
 
-    # Ensure all optimizer states are placed on the same device as parameters (for checkpoint safety)
     for group in optimizer.param_groups:
         for p in group["params"]:
-            if p is not None and p.device:
-                for state in optimizer.state.values():
-                    for k, v in state.items():
-                        if isinstance(v, torch.Tensor):
-                            optimizer.state[name][k] = v.to(p.device)
+            if p is None:
+                continue
+            dev = p.device
+            for state in optimizer.state.values():
+                for k, v in list(state.items()):
+                    if isinstance(v, torch.Tensor) and v.device != dev:
+                        state[k] = v.to(dev)
 
     return optimizer
