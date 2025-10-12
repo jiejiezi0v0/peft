@@ -122,7 +122,7 @@ class LoraFAOptimizer(Optimizer):
                     grad_B_orin = B.grad
 
                     delta = 1e-8
-                    AA_T = A @ A.T
+                    AA_T = A.T @ A
                     AA_T_inv = torch.linalg.pinv(
                         AA_T + delta * torch.eye(A.shape[0], device=A.device)
                     )
