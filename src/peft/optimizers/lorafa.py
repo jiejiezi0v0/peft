@@ -185,3 +185,44 @@ class LoraFAOptimizer(Optimizer):
                         p.add_(p, alpha=(-group["lr"] * group["weight_decay"]))
 
         return loss
+
+
+def create_lorafa_optimizer(
+    model: PeftModel, r: int, lora_alpha: int, lr: float, weight_decay: float = 0.0, use_rslora: bool = False
+) -> Optimizer:
+    """
+    Creates a LoraFAOptimizer instance configured for the given PEFT model,
+    with proper device-safe initialization.
+    """
+    # Freeze LoRA A matrices
+    for name, param in model.named_parameters():
+        if "lora_A" in name:
+            param.requires_grad_(False)
+
+    lora_scaling = lora_alpha / math.sqrt(r) if use_rslora else lora_alpha / r
+
+    named_params = list(model.named_parameters())
+
+    param_groups = [
+        {
+            "params": [p for _, p in named_params],
+            "names": [name for name, _ in named_params],
+            "lr": lr,
+            "scaling_factor": lora_scaling,
+            "betas": (0.9, 0.999),
+            "weight_decay": weight_decay,
+        }
+    ]
+
+    optimizer = LoraFAOptimizer(param_groups)
+
+    # Ensure all optimizer states are placed on the same device as parameters (for checkpoint safety)
+    for group in optimizer.param_groups:
+        for p in group["params"]:
+            if p is not None and p.device:
+                for state in optimizer.state.values():
+                    for k, v in state.items():
+                        if isinstance(v, torch.Tensor):
+                            optimizer.state[name][k] = v.to(p.device)
+
+    return optimizer
